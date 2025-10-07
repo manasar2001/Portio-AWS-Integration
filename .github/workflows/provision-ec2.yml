@@ -1,0 +1,47 @@
+name: Provision EC2 Instance
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_name:
+        description: 'EC2 Instance Name'
+        required: true
+        type: string
+      instance_type:
+        description: 'EC2 Instance Type'
+        required: true
+        default: 't2.micro'
+        type: string
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-east-1'
+        type: string
+
+jobs:
+  create-ec2:
+    runs-on: ubuntu-latest
+    steps:
+    #   - name: Set up AWS CLI
+    #     run: |
+    #       sudo apt-get update
+    #       sudo apt-get install -y awscli jq
+
+      - name: Provision EC2 Instance
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          export AWS_DEFAULT_REGION=${{ github.event.inputs.region }}
+
+          INSTANCE_DATA=$(aws ec2 run-instances \
+            --image-id ami-052064a798f08f0d3 \
+            --instance-type ${{ github.event.inputs.instance_type }} \
+            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${{ github.event.inputs.instance_name }} }]" \
+            --output json)
+
+          INSTANCE_ID=$(echo $INSTANCE_DATA | jq -r '.Instances[0].InstanceId')
+          echo "Created EC2 Instance: $INSTANCE_ID"
